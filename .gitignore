@@ -4,6 +4,7 @@
 
 # Data — everyone downloads locally, too large to commit
 data/
+*.parquet
 
 # Python
 __pycache__/
