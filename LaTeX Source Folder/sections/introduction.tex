@@ -1,0 +1,23 @@
+% -------------------------------------------------------
+\section{Introduction}
+% -------------------------------------------------------
+
+\subsection{Motivation}
+
+Research language is not neutral. Abstracts encode what a field considers important, what counts as a valid contribution, and what kinds of claims require justification. As AI, machine learning, and NLP have grown from niche academic disciplines into technologies shaping everyday life, the language used to describe this research has changed alongside them, yet how to measure that change, and which analytical tools best capture it, remains an open question.
+
+Previous work in computational scientometrics has examined citation networks, co-occurring keywords, and topic distributions to track field-level change \citep{chavalarias2013,krenn2020}. These studies typically rely on a single representation and a single comparison method, which makes it difficult to distinguish genuine discourse change from methodological artefact. A frequency increase in the token \textit{application}, for instance, could reflect a real conceptual shift, a vocabulary trend, or simply a change in the composition of publication venues. Findings that emerge independently across methods with fundamentally different assumptions carry substantially stronger evidential weight.
+
+\subsection{Research Questions}
+
+This study addresses three nested research questions. First, how have AI, ML, and NLP research abstracts shifted their focus from theoretical foundations to practical applications over the period 1990–2025? Second, has the framing of limitations in abstracts changed, and has the rise of deployed AI systems introduced new categories of ethical framing? Third, how does individual technical terminology diffuse through a research field primarily through frequency of adoption, or through conceptual repositioning in new discourse contexts? A fourth cross-cutting question motivates the multi-method design: do different text analytics methods agree on when and how these changes occurred, or do they identify fundamentally different signals?
+
+\subsection{Corpus and Motivating Observation}
+
+The study is grounded in 24,677 arXiv abstracts whose primary category is in {cs.LG, cs.CL, cs.AI}, spanning 2000–2021. Publication volume is severely skewed, with 261 abstracts in 2000–2004, rising to 7,677 in 2020–2021, and the category composition shifts from cs. CL-dominant in the early periods to cs.LG-dominant after 2015. This means the corpus is not a homogeneous sample of AI research over time but an evolving mixture of subfields, a structural feature that any analysis must account for explicitly.
+
+The scale of the linguistic change can be illustrated concretely. A representative 2003 abstract reads: \textit{``We present a Bayesian model for word sense disambiguation that infers posterior sense distributions from prior lexical knowledge and contextual co-occurrence statistics.''} These two texts share almost no vocabulary and assert radically different epistemic claims. The first defends a theoretical model, the second reports benchmark performance. Quantifying this transition systematically, across 24,677 documents, is the core analytical challenge of this paper.
+\subsection{Why a Multi-Method Design}
+
+No single text analytics method can address all dimensions of this problem simultaneously. Lexical keyword analysis is highly interpretable but limited to predefined vocabulary. Topic modelling identifies latent themes without requiring predefined terms but relies on bag-of-words representations and requires manual labelling. Dimensionality reduction is representation-agnostic but collapses within-year heterogeneity and is sensitive to subfield composition shifts. Distributional drift analysis separates frequency adoption from conceptual repositioning but requires careful period alignment. Supervised classification directly quantifies temporal discriminability but conflates topical vocabulary with the specific framing signals it is intended to measure. Critically, these limitations are complementary: the weakness of each method is partially covered by the strengths of others. This is the rationale for the five-method design adopted here. A finding that recurs independently across methods carries substantially stronger evidential weight than one that appears in a single analysis alone.
+\newpage
