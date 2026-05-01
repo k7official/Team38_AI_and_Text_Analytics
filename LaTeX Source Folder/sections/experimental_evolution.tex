@@ -1,0 +1,227 @@
+% -------------------------------------------------------
+\section{Experimental Evaluation}
+% -------------------------------------------------------
+
+\subsection{Performance Metrics and Their Limitations}
+
+The five methods span fundamentally different analytical paradigms, unsupervised topic discovery, lexical counting, supervised classification, distributional drift, and dimensionality reduction, and therefore require different evaluation frameworks. Because none of the temporal analyses has an external ground truth against which predictions can be verified, the primary standard of evidence across the study is cross-method convergence: a finding that recurs independently across methods with different representational assumptions carries substantially stronger evidential weight than one that appears in a single analysis. Table 2 summarises the metric choices and their principal limitations.
+\begin{table}[H]
+\centering
+\caption{Performance metrics and key limitations by method}
+\small
+\setlength{\tabcolsep}{4pt}
+
+\begin{tabularx}{\linewidth}{l >{\raggedright\arraybackslash}p{2.2cm} X}
+\toprule
+\textbf{Method} & \textbf{Metric(s)} & \textbf{Key Limitation} \\
+\midrule
+M1 Topic        & $C_v$ coherence score 
+                & Rewards internal consistency; cannot penalise redundant topics or validate manual theory/application labelling \\
+M2 Diffusion    & TF-IDF $\Delta$, Word2Vec cosine, SPECTER2 drift 
+                & No absolute scale; SPECTER2 coverage constraint excludes most emergent terms by construction \\
+M3 Framing      & Macro F1, Precision, Recall (5-fold CV) 
+                & Top classifier features reflect broad topical vocabulary, not specifically limitation-framing language \\
+M4 Dim. red.    & Pearson $r$, UMAP topology 
+                & Centroid drift collapses within-year heterogeneity; TF-IDF PCA conflates temporal and subfield variance \\
+M5 Lexical      & Raw term frequency (normalised by character count); TF-IDF weighted score per category per year
+                & Vocabulary-bound: terms absent from the predefined list are invisible; likely understates the scale of the shift \\
+\bottomrule
+\end{tabularx}
+
+\end{table}
+
+M1-Topic modelling uses $C_v$ coherence, which computes normalised pointwise mutual information between a topic's top words over a sliding corpus window. $C_v$ correlates well with human interpretability judgements on short documents and was preferred over held-out perplexity, which rewards models with many diffuse topics and is poorly suited to short-document corpora. $C_v$ determines the optimal number of topics, but cannot validate the manual assignment of topic labels as theory- or application-oriented, and is an irreducible interpretive step.
+
+M2-Terminology diffusion triangulates three signals because diffusion operates simultaneously at surface (TF-IDF delta), distributional (Word2Vec cosine distance between Procrustes-aligned period models), and discourse (SPECTER2 embedding drift) levels, and no single metric captures all three. All scores are normalised to [0,1] across tracked terms; a threshold of (0.5, 0.5) on both axes produces the four-quadrant typology. SPECTER2 (allenai/specter2 via HuggingFace) was selected over general-purpose sentence encoders because its contrastive pretraining on citation pairs directly mirrors the semantic structure of a research abstract corpus.
+
+M3-Limitation framing reports macro F1 as the primary metric under five-fold stratified cross-validation. Macro averaging is essential because the two comparison periods, 2010–2013 and 2018–2020, are not balanced: the latter period contains substantially more abstracts, and accuracy alone would be misleadingly optimistic. Precision and recall are reported separately to diagnose the direction of classification errors.
+
+M4-Dimensionality reduction uses the Pearson correlation between TF-IDF and Sentence-BERT (all-MiniLM-L6-v2, HuggingFace Sentence Transformers) year-on-year centroid distance series as a cross-representation robustness statistic. Distances are computed in full-dimensional space, 50-component PCA for TF-IDF, and 384 dimensions for SBERT, because the 2D TF-IDF projection retains only approximately 1.6\% of total variance, making 2D centroid distances unreliable. Both PCA and UMAP are applied for visualisation; UMAP generates no quantitative claims and is used qualitatively only.
+
+M5-Lexical analysis compares raw term frequency (keyword count normalised by total characters per year) and mean TF-IDF score per keyword category. Comparing two scoring schemes is itself part of the experimental design: agreement in direction and timing strengthens the finding, while disagreement would flag a methodological artefact. The fundamental limitation is that the predefined keyword sets cannot capture newer application-oriented vocabulary, such as fine-tuning or zero-shot, almost certainly understating the true scale of the observed shift.
+
+\subsection{Experimental Setup}
+\paragraph{Corpus and temporal coverage.}
+Temporal analyses use the same period structure described in Section~\ref{sec:methodology}: M5 and M3 operate on the full available range of 1990--2025 to capture the longest possible trajectory of lexical and limitation-framing change. M1, M2, and M4 operate from 2000 to 2021, where abstract volume is sufficient to support period-level topic models and embedding geometries. Corpus growth is severely skewed, and this is addressed differently across methods. M2 applies reliability weights of 0.27 and 0.49 to the two earliest periods to prevent sparse early corpora from distorting TF-IDF averages and Word2Vec training. M3 uses stratified folds to account for class imbalance. M4 and M5 compute per-year statistics without rebalancing, since the publication growth trajectory is itself a substantive empirical finding rather than a confound to be removed.
+\paragraph{Preprocessing.}
+A shared preprocessing pipeline was applied across all methods, as described in Section~\ref{sec:preprocessing}, including lowercasing, tokenisation, stopword removal, and WordNet POS-aware lemmatisation. For SentenceBERT and SPECTER2, however, raw non-lemmatised abstracts were retained to preserve sentence structure and discourse signal.
+\paragraph{Train/test splits.}
+No train/test split was applied to temporal analyses (M1, M2, M4, M5): temporal ordering is the analytical structure, not a partition to hold out. M3 is the only exception. It uses a deliberately disjoint comparison of 2010--2013 versus 2018--2020, skipping the 2014--2017 transitional years to suppress noise during the period of change and sharpen the pre/post-neural-turn contrast. Five-fold stratified cross-validation is applied within this split.
+\paragraph{Method-specific setup.}
+For M1, topic count $k$ was swept over $\{6, 8, 10, 12\}$ for both LDA (Gensim) and NMF (scikit-learn). The configuration maximising $C_v$ was selected: $k = 10$ for both models. LDA used bag-of-words representations; NMF used TF-IDF features. Topics were manually labelled by inspecting the top ten words per topic and assigning each to theory-oriented, application-oriented, or methodological.
+For M2, candidate terms were mined by computing per-period TF-IDF on a concatenated period corpus (\texttt{sublinear\_tf=True}) and retaining the top-60 rising terms. Approximately 37\% were removed as subsumed $n$-grams, yielding approximately 48 candidates. Before Word2Vec training, 174 multi-word compounds (e.g., \texttt{word\_embeddings}, \texttt{pre\_training}) were merged into underscored tokens to prevent spurious decomposition. Word2Vec skip-gram models (\texttt{vector\_size=300}, \texttt{window=12}, \texttt{min\_count=2}, \texttt{negative=10}, \texttt{epochs=30}, \texttt{seed=42}) were trained per temporal period; \texttt{window=12} was chosen over the default 5 to capture longer-range scientific context, given the longer mean sentence length of abstracts. Cross-period alignment used Procrustes orthogonal transformation (\texttt{scipy.linalg.orthogonal\_procrustes}) on 1,436 shared anchor terms. For SPECTER2, encoding used raw non-lemmatised abstracts (batch size 64, L2-normalised outputs via \texttt{\seqsplit{SentenceTransformer("allenai/specter2\_base")}}), with lemmatisation applied only at the term-detection layer. Bootstrap aggregation resampled abstracts $B = 100$ times per (term, period) cell; cells with fewer than 5 abstracts were excluded, leaving 30 of 48 candidate terms with full SPECTER2 coverage.
+\subsection{Results}
+\subsubsection{Theory-to-Application Shift}
+M5, M1, and M4 converge independently on approximately 2014–2016 as the primary inflection point. Under M5, application-oriented keyword prevalence overtakes theory-oriented prevalence in 2014 under raw frequency scoring and in 2015 under TF-IDF, with both measures showing a sustained upward trend through 2025 and no reversal. The one-year difference between scoring schemes falls within the expected noise of TF-IDF's corpus-relative scaling. The directional finding is stable across both vocabulary sizes tested: a focused 9-term set and a broader 29-term set agree on direction, though the larger set introduced noise from semantically ambiguous terms such as model and method that appear with nearly equal frequency in theoretical and applied contexts, supporting the choice of the narrower vocabulary.
+Topic modelling (M1) corroborates this independently and without predefined vocabulary. NMF with 10 topics achieved the highest coherence across all configurations ($C_v = 0.55$, Table 3). Topics dominated by algorithm, optimisation, convergence, statistical, estimation, and inference were labelled theory-oriented; topics dominated by dataset, prediction, healthcare, translation, recommendation, and platform were labelled application-oriented. Tracking proportions over time shows an uninterrupted rise in application-oriented topic share from the early 2000s through 2021. Critically, both LDA and NMF recover this trend despite their different mathematical assumptions. LDA through probabilistic topic assignment, NMF through non-negative matrix factorisation of TF-IDF features, which constitutes evidence that the signal reflects genuine structure in the data rather than the inductive bias of either model.
+
+\begin{table}[H]
+\centering
+\caption{Topic coherence scores by model and configuration}
+\small
+
+\begin{tabular}{llcc}
+\toprule
+\textbf{Model} & \textbf{Representation} & \textbf{Topics} & \textbf{$C_v$} \\
+\midrule
+LDA & BoW     & 6  & 0.43 \\
+LDA & BoW     & 8  & 0.46 \\
+LDA & BoW     & 10 & 0.48 \\
+NMF & TF-IDF  & 6  & 0.49 \\
+NMF & TF-IDF  & 8  & 0.52 \\
+NMF & TF-IDF  & 10 & \textbf{0.55} \\
+\bottomrule
+\end{tabular}
+\end{table}
+Dimensionality reduction (M4) provides the strongest cross-representation corroboration. The Pearson correlation between TF-IDF and the Sentence-BERT year-on-year centroid distance series is $r = 0.863$, indicating that two fundamentally different representations independently track the same temporal rhythm of change. Both representations place 2014–2016 as the highest-movement window (Table 3). The most counterintuitive result is that 2017 ranks last in both representations despite being the year of the Transformer paper. This is mechanistically principled: the 2017 corpus reflects work already in progress before the Transformer architecture existed. Corpus-based analysis records the diffusion of ideas at scale, not their point of origin. The paradigm shift registers approximately 12 to 24 months after publication, when citing papers adopt the vocabulary at scale.
+\begin{table}[H]
+\centering
+\caption{Year-on-year centroid distance rankings (selected years)}
+\small
+\begin{tabularx}{\linewidth}{l c c X}
+\toprule
+\textbf{Year} & \textbf{TF-IDF} & \textbf{SBERT} & \textbf{Interpretation} \\
+\midrule
+2014 & ---          & 0.890 (3rd) & Neural transition begins, SBERT starts showing stronger structure sensitivity \\
+2015 & 0.754 (4th)  & 0.935 (2nd) & Peak neural adoption and embedding stabilization effects \\
+2016 & 0.959 (2nd)  & ---         & Highest TF-IDF centroid shift, strong lexical drift observed \\
+2017 & Lowest       & Lowest      & Transitional stability period, reduced semantic displacement \\
+2018 & High (3rd)   & Moderate (5th) & BERT-era emergence with secondary structural realignment \\
+\bottomrule
+\end{tabularx}
+
+\end{table}
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\columnwidth}{\centering\small\includegraphics[width=0.9\columnwidth]{figures/pca_figures/fig3.png}}}
+\caption{Year-on-year centroid distance comparison, TF-IDF vs.\ SBERT}
+
+\end{figure}
+
+\setcounter{figure}{4}
+
+While the two representations agree on the timing of major shifts, they differ in sensitivity. Sentence-BERT assigns higher relative movement to earlier years within the transition (e.g., 2014–2015), whereas TF-IDF peaks later (2016), consistent with a lag in vocabulary adoption relative to underlying conceptual change. This supports H4, indicating that semantic and lexical signals are not perfectly synchronous but remain directionally aligned.
+
+Extended Embedding Structure Analysis
+Post-hoc analysis of Sentence-BERT embeddings is consistent with TF-IDF PCA and confirming that the largest sources of variance arise from disciplinary differences rather than temporal change. Nearest-neighbour analysis (using the BERT paper as a probe) validates semantic coherence and reveals a diffusion effect, where follow-on work (2019–2020) clusters more closely than contemporaneous papers, indicating that embedding space reflects intellectual influence and reinforcing the finding that corpus-based methods capture the spread of ideas rather than their origin. K-means clustering (k = 8) further supports the interpretation that the field has expanded rather than replaced its structure, with declining symbolic AI, stable core task clusters, and emergent neural systems, and safety-related research coexisting over time. Crucially, extending PCA beyond the standard 2D projection shows that temporally coherent signals emerge only in higher-order components, with PC4 exhibiting a strong monotonic trend (Kendall's $\tau = +0.667$, $p < 0.001$)  corresponding to the rise of socially-aware AI research (e.g., fairness, interpretability, ethics), a signal entirely invisible in 2D due to its orthogonality to dominant variance. This demonstrates that meaningful temporal dynamics exist in directions not aligned with the largest variance components, and that low-dimensional projections alone can obscure key patterns of field evolution.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\columnwidth}{\centering\small\includegraphics[width=0.9\columnwidth]{figures/pca_figures/fig4.png}}}
+\caption{Fig.\ 4: Embedding PCA components over time}
+\end{figure}
+
+\subsubsection{Limitation Framing}
+
+The four-category lexical analysis reveals distinct temporal trajectories across framing types. Hedging language (could, may) was consistently present across all periods, suggesting it is a stable feature of academic register rather than a response to any specific development. Capability language (limited, cannot) was the most common category in early periods but declined steadily from approximately 28\% in 1990 to 22\% by 2020–2024. Failure language (fail, degrade) began low at around 6\% and grew to become the second most prevalent category by 2020–2024 at approximately 24\%, reflecting the increasing emphasis on empirical benchmarking and performance comparison. Ethics language (bias, fairness) was near-absent before 2015 and rose to $\approx$ 13\% of abstracts by 2020–2024, a trajectory that directly parallels the large-scale deployment of AI systems in socially consequential contexts.
+\setcounter{figure}{4}
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\columnwidth}{\centering\small\includegraphics[width=0.9\columnwidth]{figures/limitation_framing/limitation1.png}}}
+\caption{Proportion of abstracts containing each limitation framing category across time. Ethics language shows the sharpest rise post-2015.}
+\end{figure}
+
+Notably, method-introducing and non-method abstracts show near-identical rates of limitation language (51.4\% vs. 51.1\%), indicating that limitation framing has become a normalised feature of academic writing across research types rather than a marker of methodological modesty in technically focused papers.
+The binary classifier achieved a mean cross-validation accuracy of 85.8\% with macro F1 scores of 0.71 for the early period (2010–2013) and 0.92 for the late period (2018–2020).
+
+
+\begin{table}[H]
+\centering
+\caption{Classification performance (5-fold CV)}
+\small
+
+\begin{tabularx}{\linewidth}{l c X}
+\toprule
+\textbf{Period} & \textbf{F1} & \textbf{Observation} \\
+\midrule
+Early (2010--13) & 0.71 & Minority class; higher variance; more diverse vocabulary \\
+Late (2018--20)  & 0.92 & The majority class is dominated by consistent neural-era vocabulary \\
+Mean CV Acc.     & 85.8\% & Macro-averaged to correct for class imbalance \\
+\bottomrule
+\end{tabularx}
+
+\end{table}
+The F1 gap reflects the class imbalance between periods and the greater lexical consistency of late-period abstracts, which are dominated by a relatively stable neural-era vocabulary. The high overall accuracy confirms that the two periods are robustly distinguishable from abstract text alone.
+
+\begin{figure}[H]
+\centering
+\fbox{\parbox{0.9\columnwidth}
+{\centering\small\includegraphics[width=0.9\columnwidth]{figures/limitation_framing/limitation2.png}}}
+\caption{Top discriminative features for the early (2010--13) and late (2018--20) periods. Features reflect broad topical change rather than limitation-specific language.}
+\end{figure}
+
+Cosine distance between five-year period centroids reveals two statistically distinct transitions: 1990–1994 to 1995–1999 (distance = 0.349) and 2010–2014 to 2015–2019 (distance = 0.303). All other consecutive period pairs show substantially smaller distances (0.09–0.19), confirming that the limitation discourse evolves through discrete phase transitions rather than gradual continuous drift. PCA trajectories show stable semantic positioning from 1990 to 2014, a sharp shift from 2015 to 2019, and gradual stabilisation thereafter (distance = 0.090).
+
+\subsubsection{Terminology Diffusion}
+
+The four-quadrant typology classifies 36 tracked terms across two axes: normalised TF-IDF rise and mean W2V + SPECTER2 drift, thresholded at (0.5, 0.5).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{figures/terminology_diffusion_figures/Fig7.png}
+\caption{Four-quadrant diffusion typology.}
+\label{fig:terminology_diff}
+\end{figure}
+
+The largest category is Semantic Shift Only ($n = 13$), followed by Stable/Peripheral ($n = 16$), Diffused ($n = 6$), and a singleton Actively Diffusing quadrant occupied by \textit{pre-training}. This distribution challenges frequency-centric accounts of terminology adoption: the dominant diffusion pathway in this corpus is quiet conceptual repositioning that is entirely invisible to frequency-only analysis.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{figures/terminology_diffusion_figures/Fig8.png}
+\caption{Per-term trajectory cards showing TF-IDF, W2V, and SPECTER2 signals across five periods. Card colour encodes the diffusion quadrant.}
+\label{fig:terminology_diff}
+\end{figure}
+
+\textit{Encoder} case provides the clearest convergent evidence across all three signals, achieving the highest consensus score (0.63) and highest SPECTER2 drift (0.0424). Visual inspection of the neighbour replacement ribbons confirms near-total neighbourhood replacement across periods Jaccard $\approx$ 0.001, demonstrating that the term's distributional context changed completely between the earliest and latest periods.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{figures/terminology_diffusion_figures/Fig9.png}
+\caption{Neighbour replacement ribbons across periods. \textit{Encoder} shows near-total replacement.}
+\label{fig:terminology_diff}
+\end{figure}
+
+The counterexample is pre-training: highest TF-IDF rise ($\approx$0.84) but near-zero SPECTER2 drift (0.0021). This identifies it as a discourse template replication event. The BERT fine-tuning argumentative structure was established in a small number of pioneering papers and reproduced at scale with minimal variation, producing a terminological monoculture rather than conceptual diffusion.
+
+\subsection{Error Analysis}
+
+\textbf{Topic Modelling Ambiguity (M1)}
+
+Manual labelling is inherently subjective when topics overlap. A topic defined by terms like \textit{neural, architecture, deep, layers} was coded as methodological, but it could just as reasonably be labelled theoretical or applied many NLP abstracts report an architectural contribution \textit{and} a downstream application in the same breath. This is a fundamental problem with bag-of-words models: a single abstract cannot be decomposed into its constituent themes, so a topic spanning multiple orientations receives one label that is, by necessity, approximate. The theory/application proportion curves should therefore be treated as indicative trends rather than precise measurements. LDA is more susceptible to this than NMF: its lower coherence scores mean topic boundaries are blurrier, which makes labelling decisions less consistent across runs.
+
+\textbf{Diffusion Coverage Bias (M2)}
+
+SPECTER2 requires at least 5 abstracts per term-period cell to include a term in the drift analysis. This constraint systematically excludes the most analytically important terms \textit{transformer, downstream task, low resource, prompt} because they simply do not appear before 2010–14, leaving no early-period baseline from which to measure drift. The result is a structural underestimation bias for exactly the terms we most want to track, and it is not correctable as a noise problem because it is built into the metric's design. The Procrustes alignment used to compare embedding spaces across time compounds this: only 1,436 of 20,631 vocabulary terms (6.9\%) appear in all periods. For high-drift terms whose neighbourhood is populated by period-specific vocabulary outside this anchor set, the possibility of alignment artefacts cannot be ruled out without a sensitivity analysis that varies anchor vocabulary size.
+
+\textbf{Classification Errors (M3)}
+
+The confusion matrix shows a clear directional asymmetry: 108 late-period abstracts were misclassified as early, compared to only 35 early-period abstracts misclassified as late. This is not random noise. The 108 misclassified late abstracts consistently use pre-neural vocabulary Bayesian inference, causal modelling, formal semantics within the 2018–2020 window. The classifier learned the vocabulary of the dominant late-period paradigm and consequently fails on the subset of late papers that deliberately resist neural-era language. This is a coherent minority subpopulation, not noise. Early abstracts are rarely misclassified as late because pre-neural vocabulary is sufficiently distinctive to be almost entirely absent from later work.
+
+A deeper problem emerges from the top discriminating features. The most predictive terms are \textit{algorithm, Bayesian, probability, neural, deep, embeddings} broad topical markers, not limitation-specific language. Only one feature in the classifier's top terms overlaps with the manually constructed limitation keyword lists. The model is therefore not capturing how researchers talk about limitations; it is capturing how the vocabulary of subfields shifted over time. It conflates a change in research topics with a change in how limitations are framed a related but distinct signal. Despite its reasonably good accuracy, the classifier provides limited direct evidence about changes in limitation language specifically.
+
+\textbf{PCA Failure (M4)}
+
+Applying PCA to TF-IDF vectors exposes a structural problem: the leading components are dominated by subfield vocabulary rather than temporal change. PC1 is driven by NLP-specific terms (\textit{language}: 0.352, \textit{word}: 0.240, \textit{translation}: 0.237, \textit{sentence}: 0.160), effectively separating cs.CL from cs.LG and cs.AI. The primary variance axis reflects disciplinary composition, not temporal evolution. This problem is compounded by severe information loss: 2D PCA retains only 1.6\% of total variance, and even 50 components retain approximately 14\%, making centroid-based analysis unreliable.
+
+A parallel issue appears in Sentence-BERT embeddings, where leading components encode disciplinary structure NLP versus broader AI, symbolic versus connectionist approaches rather than temporal progression. Because embedding dimensions are not directly interpretable, this must be inferred qualitatively rather than verified quantitatively. Temporal signal emerges in higher-order components, confirming that time is not a primary variance axis. Consistent with this, within year dispersion decreases over time even as centroids shift substantially suggesting the field evolves along a shared trajectory rather than fragmenting into independent directions.
+
+\subsection{Discussion}
+
+\textbf{Cross-Method Convergence}
+
+What matters most is not the result of any single method, but the fact that all five converge on 2014–2016 as the major inflection point. Lexical counts (M5) cross over at 2014–2015; application-oriented topic proportions (M1) rise continuously across this window; TF-IDF and Sentence-BERT centroid distances (M4, $r = 0.863$) peak independently here; Word2Vec drift curves (M2) show a step change between the 2010–14 and 2015-19 periods for tracked terms. Given that these methods differ fundamentally in representation, modelling assumptions, and scale, their agreement constitutes strong evidence that the inflection is a genuine feature of the corpus rather than a methodological artefact, directly validating H4.
+
+\textbf{Expansion, Not Replacement}
+
+The dominant pattern is expansion rather than replacement. UMAPs show all time periods intermixed in the semantic space. Theory-focused topics decline as a share of the field but do not disappear; most tracked terms shift position without vanishing. Meanwhile, within-year dispersion decreases, indicating that the field is converging on shared methods and evaluative norms while accumulating application-focused work on top of a preserved theoretical core. Methods that test for paradigm replacement by tracking keyword loss will overestimate fragmentation: they mistake a shift in relative emphasis for the disappearance of an older paradigm.
+
+\textbf{Hypothesis Results}
+
+H1 is verified: NMF recovered the paradigm shift and identified hybrid topics that keyword-based approaches missed. H2 is confirmed for the encoder case, but SPECTER2's coverage constraint prevents testing the most emergent terms directly. H3 is partially confirmed: centroid measures captured the 2017 lag, while the classifier demonstrated between-period separability but conflated topical and framing effects. H4 is very strongly supported by the five-method convergence on 2014–2016.
+
+\textbf{Comparative Strengths and Recommendations}
+
+Manual vocabulary analysis (M5) is intuitive and interpretable but vocabulary-specific, making it a lower bound on the measured shift. Topic modelling (M1) removes this vocabulary dependency, and agreement between LDA and NMF increases confidence in the results, but the bag-of-words representation conflates co-occurring themes and labelling remains subjective. Dimensionality reduction (M4) provides the most effective cross-validation, but it requires diagnosis to distinguish disciplinary composition effects from genuine temporal change. Terminology diffusion (M2) is the most distinctive method: the 13-term Semantic Shift Only category and the pre-training template replication result are unique to this approach, though sparse Procrustes anchoring (6.9\% of the union vocabulary) cannot exclude alignment artefacts for high-drift terms. Classification (M3) is the only method with a quantitative generalisation measure, but it conflates topical vocabulary with limitation-specific language, limiting its interpretive value.
+
+Three extensions would substantially strengthen future work: extending the corpus beyond 2021 to resolve open diffusion arcs for cross-lingual and benchmark terms; replacing binary period classification with a sequence model capable of detecting \textit{when} framing changed rather than merely confirming that two periods are separable; and repeating all analyses on full paper bodies to determine whether the near-identical proportion of limitation language across paper types (51.4\% vs. 51.1\%) reflects genuine normalisation or abstract-genre compression.
