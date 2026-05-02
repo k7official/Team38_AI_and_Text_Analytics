@@ -1,0 +1,17 @@
+# **Group Progress**
+
+**Project:** Comparative Corpus Analysis of Scientific Abstracts in AI/ML/NLP  
+**Course:** Text Analytics  
+**Project Duration:** 16 March \- 1 May 2026
+
+**Meeting Platform:** Google Meet/Physical Meet  
+**Documentation & Collaboration:** Google Docs, Google Sheets, GitHub
+
+**Weekly Meeting Plan**
+
+| Meeting | Date | Attendees | Purpose | MOM |
+| ----- | ----- | ----- | ----- | ----- |
+| Meeting 1 | 18 Mar 2026 | Everyone | Project kickoff | Here’s a quick summary of what we covered in today’s meeting: We came up with the main research question and sub-questions to help us get a strong head start on the project. A Jira invite has been sent out for our project management, please accept and familiarise yourselves with it. To-Do: Get hands-on with the dataset Perform some initial exploration and note any interesting insights We will do a quick check-in on Friday over chat/text to share progress Our next full team meeting is on Monday  |
+| Meeting 2 | 23 Mar 2026 | Everyone | Data Understanding | Did the data understanding/eda and came up wit research question collectively:**To what extent have AI/ML/NLP research abstracts shifted in their focus from theoretical foundations to real-world applications, changed in how limitations are framed, and accelerated in the diffusion of new terminology over time?** |
+| Meeting 3 | 25 Mar 2026 | Zahra Musa Triveni Thrijwal | Building data preprocessing pipeline | Came up with subquestions for the research question and reviewed the progress on the data preprocessing work and agreed on the structure of the final data cleaning pipeline for the arXiv dataset. Key Decisions: Pick and choose individual subquestions to work on. The final data cleaning pipeline will be used as the standard workflow for dataset preparation. The dataset will focus on the following categories: cs.lg, cs.cl, and cs.ai. Abstracts shorter than 50 words will be removed to ensure data quality. A 5-year time period grouping will be applied. The final dataset will contain the following variables: id year title abstract category period  |
+
