@@ -81,3 +81,19 @@
 \definecolor{stepgreen}{RGB}{225, 245, 230}
 
 \bibliographystyle{IEEEtran}
+
+\usepackage{graphicx}   % for images
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+
+% Define the custom footer with Git image + link
+\fancypagestyle{gitfooter}{%
+  \fancyhf{}% clear header/footer
+  \renewcommand{\headrulewidth}{0pt}% remove header line
+  \fancyfoot[C]{% center footer
+    \includegraphics[height=15pt]{figures/git-logo.png}% adjust height; omit file extension
+    \hspace{5pt}% small space
+    \href{https://github.com/k7official/Team38_AI_and_Text_Analytics}{Git Repository}%
+    \hfill \thepage% optional: keep page number on the right
+  }%
+}
